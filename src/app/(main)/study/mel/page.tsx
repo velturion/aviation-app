@@ -226,7 +226,7 @@ export default function MelPage() {
       {filteredConcepts.length === 0 && (
         <Card className="p-8 text-center">
           <p className="text-gray-400">
-            No se encontraron conceptos MEL para "{searchTerm}"
+            No se encontraron conceptos MEL para &quot;{searchTerm}&quot;
           </p>
         </Card>
       )}

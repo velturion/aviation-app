@@ -41,3 +41,5 @@ next-env.d.ts
 
 # SaaS factory (external repo)
 saas-factory-setup/
+
+.vercel

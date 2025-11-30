@@ -3,7 +3,6 @@
 import Link from 'next/link';
 import {
   BookOpen,
-  Brain,
   MessageSquare,
   Plane,
   AlertTriangle,

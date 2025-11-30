@@ -1,11 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useState } from 'react';
+import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import type { StudyQuestion, StudySession } from '@/types';
+import type { StudyQuestion } from '@/types';
 
 // Mock questions
 const mockQuestions: StudyQuestion[] = [
@@ -79,9 +79,7 @@ const mockQuestions: StudyQuestion[] = [
 type SessionMode = 'test' | 'flash';
 
 export default function StudySessionPage() {
-  const params = useParams();
-  const router = useRouter();
-  const topicId = params.topicId as string;
+  useParams(); // Keeps params for future use with actual topic data
 
   const [mode, setMode] = useState<SessionMode>('test');
   const [currentIndex, setCurrentIndex] = useState(0);
