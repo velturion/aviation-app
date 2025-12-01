@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { useLanguage } from '@/lib/i18n';
 
@@ -72,28 +72,107 @@ export function BreakingNewsCarousel() {
   const { t } = useLanguage();
   const [activeIndex, setActiveIndex] = useState(0);
   const [isAutoPlaying, setIsAutoPlaying] = useState(true);
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStartX, setDragStartX] = useState(0);
+  const [dragOffset, setDragOffset] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Auto-rotate carousel
   useEffect(() => {
-    if (!isAutoPlaying) return;
+    if (!isAutoPlaying || isDragging) return;
 
     const interval = setInterval(() => {
       setActiveIndex((prev) => (prev + 1) % mockBreakingNews.length);
     }, 5000);
 
     return () => clearInterval(interval);
-  }, [isAutoPlaying]);
+  }, [isAutoPlaying, isDragging]);
 
-  const handlePrev = () => {
+  const handlePrev = useCallback(() => {
     setIsAutoPlaying(false);
     setActiveIndex((prev) => (prev - 1 + mockBreakingNews.length) % mockBreakingNews.length);
-  };
+  }, []);
 
-  const handleNext = () => {
+  const handleNext = useCallback(() => {
     setIsAutoPlaying(false);
     setActiveIndex((prev) => (prev + 1) % mockBreakingNews.length);
+  }, []);
+
+  // Touch/Mouse handlers for swipe
+  const handleDragStart = (clientX: number) => {
+    setIsDragging(true);
+    setDragStartX(clientX);
+    setDragOffset(0);
+    setIsAutoPlaying(false);
   };
+
+  const handleDragMove = (clientX: number) => {
+    if (!isDragging) return;
+    const offset = clientX - dragStartX;
+    setDragOffset(offset);
+  };
+
+  const handleDragEnd = () => {
+    if (!isDragging) return;
+    setIsDragging(false);
+
+    // Threshold for swipe (50px)
+    if (dragOffset > 50) {
+      handlePrev();
+    } else if (dragOffset < -50) {
+      handleNext();
+    }
+
+    setDragOffset(0);
+  };
+
+  // Mouse events
+  const onMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault();
+    handleDragStart(e.clientX);
+  };
+
+  const onMouseMove = (e: React.MouseEvent) => {
+    handleDragMove(e.clientX);
+  };
+
+  const onMouseUp = () => {
+    handleDragEnd();
+  };
+
+  const onMouseLeave = () => {
+    if (isDragging) {
+      handleDragEnd();
+    }
+    setIsAutoPlaying(true);
+  };
+
+  // Touch events
+  const onTouchStart = (e: React.TouchEvent) => {
+    handleDragStart(e.touches[0].clientX);
+  };
+
+  const onTouchMove = (e: React.TouchEvent) => {
+    handleDragMove(e.touches[0].clientX);
+  };
+
+  const onTouchEnd = () => {
+    handleDragEnd();
+  };
+
+  // Keyboard navigation
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowLeft') {
+        handlePrev();
+      } else if (e.key === 'ArrowRight') {
+        handleNext();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handlePrev, handleNext]);
 
   const getCardStyle = (index: number) => {
     const diff = index - activeIndex;
@@ -183,23 +262,45 @@ export function BreakingNewsCarousel() {
       {/* 3D Carousel */}
       <div
         ref={containerRef}
-        className="relative h-72 sm:h-80 md:h-96 overflow-hidden"
+        className={`relative h-72 sm:h-80 md:h-96 overflow-hidden select-none ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
         style={{ perspective: '1200px' }}
+        onMouseDown={onMouseDown}
+        onMouseMove={onMouseMove}
+        onMouseUp={onMouseUp}
+        onMouseLeave={onMouseLeave}
         onMouseEnter={() => setIsAutoPlaying(false)}
-        onMouseLeave={() => setIsAutoPlaying(true)}
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
       >
-        <div className="relative w-full h-full flex items-center justify-center" style={{ transformStyle: 'preserve-3d' }}>
+        {/* Swipe indicator for mobile */}
+        <div className="absolute bottom-2 left-1/2 -translate-x-1/2 z-50 flex items-center gap-1 text-gray-500 text-xs sm:hidden">
+          <svg className="w-4 h-4 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m-12 6h12M8 17h12M4 7l4-4m0 0L4 7m4-4v8" />
+          </svg>
+          <span>Desliza</span>
+        </div>
+
+        <div
+          className="relative w-full h-full flex items-center justify-center"
+          style={{
+            transformStyle: 'preserve-3d',
+            transform: isDragging ? `translateX(${dragOffset * 0.3}px)` : 'none',
+            transition: isDragging ? 'none' : 'transform 0.3s ease-out'
+          }}
+        >
           {mockBreakingNews.map((news, index) => {
             const isActive = index === activeIndex;
             return (
               <div
                 key={news.id}
-                className={`absolute w-[85%] sm:w-[75%] md:w-[60%] lg:w-[50%] transition-all duration-500 ease-out cursor-pointer`}
+                className={`absolute w-[85%] sm:w-[75%] md:w-[60%] lg:w-[50%] transition-all duration-500 ease-out ${isActive ? 'cursor-pointer' : ''}`}
                 style={{
                   ...getCardStyle(index),
                   transformStyle: 'preserve-3d',
                 }}
                 onClick={() => {
+                  if (isDragging) return; // Don't navigate while dragging
                   if (isActive) {
                     window.location.href = `/breaking-news/${news.id}`;
                   } else {
@@ -209,11 +310,11 @@ export function BreakingNewsCarousel() {
                 }}
               >
                 <div
-                  className={`h-full rounded-2xl border-2 ${severityColors[news.severity]} ${severityBg[news.severity]} p-4 sm:p-5 md:p-6 flex flex-col shadow-2xl ${isActive ? 'shadow-black/50' : ''}`}
+                  className={`h-full rounded-2xl border-2 ${severityColors[news.severity]} ${severityBg[news.severity]} p-4 sm:p-5 md:p-6 flex flex-col shadow-2xl transition-all duration-300 ${isActive ? 'shadow-black/50 ring-2 ring-white/20' : 'hover:ring-1 hover:ring-white/10'}`}
                 >
                   {/* Badge & Time */}
                   <div className="flex items-center justify-between mb-3 sm:mb-4">
-                    <span className={`px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg text-xs sm:text-sm font-bold uppercase ${severityBadge[news.severity]}`}>
+                    <span className={`px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg text-xs sm:text-sm font-bold uppercase ${severityBadge[news.severity]} ${isActive ? 'animate-pulse' : ''}`}>
                       {news.severity === 'critical' ? '🚨 CRÍTICO' : news.severity === 'high' ? '⚠️ ALTO' : 'ℹ️ MEDIO'}
                     </span>
                     <span className="text-gray-400 text-xs sm:text-sm">
@@ -230,7 +331,14 @@ export function BreakingNewsCarousel() {
                   {/* Source */}
                   <div className="flex items-center justify-between mt-3 sm:mt-4 pt-3 sm:pt-4 border-t border-gray-700/50">
                     <span className="text-xs sm:text-sm text-gray-400">Fuente: {news.source}</span>
-                    <span className="text-blue-400 text-xs sm:text-sm font-medium">Ver detalles →</span>
+                    {isActive && (
+                      <span className="text-blue-400 text-xs sm:text-sm font-medium flex items-center gap-1">
+                        Toca para ver
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>
@@ -240,16 +348,16 @@ export function BreakingNewsCarousel() {
 
         {/* Navigation Arrows */}
         <button
-          onClick={handlePrev}
-          className="absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 z-40 p-2 sm:p-3 bg-black/60 hover:bg-black/80 rounded-full shadow-lg border border-gray-700 transition-all"
+          onClick={(e) => { e.stopPropagation(); handlePrev(); }}
+          className="absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 z-40 p-2 sm:p-3 bg-black/60 hover:bg-black/80 active:scale-95 rounded-full shadow-lg border border-gray-700 transition-all"
         >
           <svg className="w-5 h-5 sm:w-6 sm:h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
           </svg>
         </button>
         <button
-          onClick={handleNext}
-          className="absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 z-40 p-2 sm:p-3 bg-black/60 hover:bg-black/80 rounded-full shadow-lg border border-gray-700 transition-all"
+          onClick={(e) => { e.stopPropagation(); handleNext(); }}
+          className="absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 z-40 p-2 sm:p-3 bg-black/60 hover:bg-black/80 active:scale-95 rounded-full shadow-lg border border-gray-700 transition-all"
         >
           <svg className="w-5 h-5 sm:w-6 sm:h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
