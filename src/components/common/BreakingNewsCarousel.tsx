@@ -51,9 +51,15 @@ const mockBreakingNews: BreakingNewsItem[] = [
 ];
 
 const severityColors = {
-  critical: 'border-red-500 bg-red-500/10',
-  high: 'border-orange-500 bg-orange-500/10',
-  medium: 'border-yellow-500 bg-yellow-500/10',
+  critical: 'border-red-500',
+  high: 'border-orange-500',
+  medium: 'border-yellow-500',
+};
+
+const severityBg = {
+  critical: 'bg-gradient-to-br from-gray-900 via-gray-900 to-red-950',
+  high: 'bg-gradient-to-br from-gray-900 via-gray-900 to-orange-950',
+  medium: 'bg-gradient-to-br from-gray-900 via-gray-900 to-yellow-950',
 };
 
 const severityBadge = {
@@ -99,38 +105,43 @@ export function BreakingNewsCarousel() {
     let rotateY = 0;
     let opacity = 1;
     let zIndex = 10;
+    let scale = 1;
 
     if (normalizedDiff === 0) {
-      // Active card - center
+      // Active card - center, fully visible, no transparency
       translateX = 0;
-      translateZ = 0;
+      translateZ = 50;
       rotateY = 0;
       opacity = 1;
       zIndex = 30;
+      scale = 1;
     } else if (normalizedDiff === 1 || normalizedDiff === -mockBreakingNews.length + 1) {
       // Next card - right
-      translateX = 60;
-      translateZ = -100;
-      rotateY = -15;
-      opacity = 0.7;
+      translateX = 70;
+      translateZ = -50;
+      rotateY = -25;
+      opacity = 0.5;
       zIndex = 20;
+      scale = 0.85;
     } else if (normalizedDiff === mockBreakingNews.length - 1 || normalizedDiff === -1) {
       // Previous card - left
-      translateX = -60;
-      translateZ = -100;
-      rotateY = 15;
-      opacity = 0.7;
+      translateX = -70;
+      translateZ = -50;
+      rotateY = 25;
+      opacity = 0.5;
       zIndex = 20;
+      scale = 0.85;
     } else {
       // Hidden cards
       translateX = normalizedDiff > mockBreakingNews.length / 2 ? -120 : 120;
-      translateZ = -200;
+      translateZ = -150;
       opacity = 0;
       zIndex = 10;
+      scale = 0.7;
     }
 
     return {
-      transform: `translateX(${translateX}%) translateZ(${translateZ}px) rotateY(${rotateY}deg)`,
+      transform: `translateX(${translateX}%) translateZ(${translateZ}px) rotateY(${rotateY}deg) scale(${scale})`,
       opacity,
       zIndex,
     };
@@ -172,73 +183,75 @@ export function BreakingNewsCarousel() {
       {/* 3D Carousel */}
       <div
         ref={containerRef}
-        className="relative h-64 md:h-72 perspective-1000"
-        style={{ perspective: '1000px' }}
+        className="relative h-72 sm:h-80 md:h-96 overflow-hidden"
+        style={{ perspective: '1200px' }}
         onMouseEnter={() => setIsAutoPlaying(false)}
         onMouseLeave={() => setIsAutoPlaying(true)}
       >
-        <div className="relative w-full h-full" style={{ transformStyle: 'preserve-3d' }}>
-          {mockBreakingNews.map((news, index) => (
-            <div
-              key={news.id}
-              className={`absolute inset-0 mx-auto w-[90%] md:w-[80%] transition-all duration-500 ease-out cursor-pointer`}
-              style={{
-                ...getCardStyle(index),
-                transformStyle: 'preserve-3d',
-              }}
-              onClick={() => {
-                if (index === activeIndex) {
-                  // Navigate to detail
-                  window.location.href = `/breaking-news/${news.id}`;
-                } else {
-                  setActiveIndex(index);
-                  setIsAutoPlaying(false);
-                }
-              }}
-            >
+        <div className="relative w-full h-full flex items-center justify-center" style={{ transformStyle: 'preserve-3d' }}>
+          {mockBreakingNews.map((news, index) => {
+            const isActive = index === activeIndex;
+            return (
               <div
-                className={`h-full rounded-xl border-2 ${severityColors[news.severity]} p-5 flex flex-col backdrop-blur-sm`}
+                key={news.id}
+                className={`absolute w-[85%] sm:w-[75%] md:w-[60%] lg:w-[50%] transition-all duration-500 ease-out cursor-pointer`}
+                style={{
+                  ...getCardStyle(index),
+                  transformStyle: 'preserve-3d',
+                }}
+                onClick={() => {
+                  if (isActive) {
+                    window.location.href = `/breaking-news/${news.id}`;
+                  } else {
+                    setActiveIndex(index);
+                    setIsAutoPlaying(false);
+                  }
+                }}
               >
-                {/* Badge & Time */}
-                <div className="flex items-center justify-between mb-3">
-                  <span className={`px-2 py-1 rounded text-xs font-bold uppercase ${severityBadge[news.severity]}`}>
-                    {news.severity === 'critical' ? '🚨 CRÍTICO' : news.severity === 'high' ? '⚠️ ALTO' : 'ℹ️ MEDIO'}
-                  </span>
-                  <span className="text-gray-400 text-sm">
-                    {formatTime(news.timestamp)}
-                  </span>
-                </div>
+                <div
+                  className={`h-full rounded-2xl border-2 ${severityColors[news.severity]} ${severityBg[news.severity]} p-4 sm:p-5 md:p-6 flex flex-col shadow-2xl ${isActive ? 'shadow-black/50' : ''}`}
+                >
+                  {/* Badge & Time */}
+                  <div className="flex items-center justify-between mb-3 sm:mb-4">
+                    <span className={`px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg text-xs sm:text-sm font-bold uppercase ${severityBadge[news.severity]}`}>
+                      {news.severity === 'critical' ? '🚨 CRÍTICO' : news.severity === 'high' ? '⚠️ ALTO' : 'ℹ️ MEDIO'}
+                    </span>
+                    <span className="text-gray-400 text-xs sm:text-sm">
+                      {formatTime(news.timestamp)}
+                    </span>
+                  </div>
 
-                {/* Title */}
-                <h3 className="text-lg font-bold mb-2 line-clamp-2">{news.title}</h3>
+                  {/* Title */}
+                  <h3 className="text-base sm:text-lg md:text-xl font-bold mb-2 sm:mb-3 line-clamp-2 text-white">{news.title}</h3>
 
-                {/* Summary */}
-                <p className="text-gray-400 text-sm flex-1 line-clamp-3">{news.summary}</p>
+                  {/* Summary */}
+                  <p className="text-gray-300 text-xs sm:text-sm md:text-base flex-1 line-clamp-2 sm:line-clamp-3">{news.summary}</p>
 
-                {/* Source */}
-                <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-700">
-                  <span className="text-xs text-gray-500">Fuente: {news.source}</span>
-                  <span className="text-primary text-sm">Ver detalles →</span>
+                  {/* Source */}
+                  <div className="flex items-center justify-between mt-3 sm:mt-4 pt-3 sm:pt-4 border-t border-gray-700/50">
+                    <span className="text-xs sm:text-sm text-gray-400">Fuente: {news.source}</span>
+                    <span className="text-blue-400 text-xs sm:text-sm font-medium">Ver detalles →</span>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         {/* Navigation Arrows */}
         <button
           onClick={handlePrev}
-          className="absolute left-0 top-1/2 -translate-y-1/2 z-40 p-2 bg-surface/80 hover:bg-surface rounded-full shadow-lg"
+          className="absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 z-40 p-2 sm:p-3 bg-black/60 hover:bg-black/80 rounded-full shadow-lg border border-gray-700 transition-all"
         >
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="w-5 h-5 sm:w-6 sm:h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
           </svg>
         </button>
         <button
           onClick={handleNext}
-          className="absolute right-0 top-1/2 -translate-y-1/2 z-40 p-2 bg-surface/80 hover:bg-surface rounded-full shadow-lg"
+          className="absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 z-40 p-2 sm:p-3 bg-black/60 hover:bg-black/80 rounded-full shadow-lg border border-gray-700 transition-all"
         >
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="w-5 h-5 sm:w-6 sm:h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
           </svg>
         </button>
